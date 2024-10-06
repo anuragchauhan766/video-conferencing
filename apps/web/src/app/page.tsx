@@ -1,10 +1,50 @@
+"use client";
 import { MyAccount } from "@/components/Auth/MyAccount";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import useSocket from "@/lib/hook/useSocket";
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+
+import { socketEvents } from "@repo/shared/constant";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const [meetingCode, setMeetingCode] = useState("");
+  const router = useRouter();
+  const socket = useSocket();
+  const handleCreateNewMeeting = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    console.log("create new meeting");
+    socket.emit(socketEvents.STARTMEETING, {
+      meetId: crypto.randomUUID(),
+      userId: crypto.randomUUID(),
+    });
+  };
+  const handleMeeting = (data: any) => {
+    console.log("meeting started", data);
+    router.push(`/${data.meetId}`);
+  };
+  useEffect(() => {
+    socket.on(socketEvents.STARTMEETING, handleMeeting);
+    socket.on(socketEvents.JOINMEETING, handleMeeting);
+
+    return () => {
+      socket.off(socketEvents.STARTMEETING, handleMeeting);
+      socket.off(socketEvents.JOINMEETING, handleMeeting);
+    };
+  }, [socket]);
+
+  const handleJoinMeeting = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    console.log("join meeting with code: ", meetingCode);
+    socket.emit(socketEvents.JOINMEETING, {
+      meetId: meetingCode,
+      userId: crypto.randomUUID(),
+    });
+    setMeetingCode("");
+  };
   return (
     <div className="flex flex-col min-h-screen max-w-screen-xl w-full ">
       <header className="h-20  w-full">
@@ -23,10 +63,14 @@ export default function Home() {
           Where Every Face Finds Its Place
         </h2>
         <div className="flex items-center justify-center gap-4 w-full">
-          <Button>Create a New Meeting</Button>
+          <Button onClick={handleCreateNewMeeting}>Create a New Meeting</Button>
           <div className="flex itesms-center gap-4 justify-center">
-            <Input placeholder="Enter a Code" />
-            <Button>Join</Button>
+            <Input
+              placeholder="Enter a Code"
+              value={meetingCode}
+              onChange={(e) => setMeetingCode(e.target.value)}
+            />
+            <Button onClick={handleJoinMeeting}>Join</Button>
           </div>
         </div>
       </main>
